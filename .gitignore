@@ -14,6 +14,10 @@ finpull
 .env.production
 .env.*.local
 
+#config
+config.dev.env
+config.prod.env
+
 # IDE
 .vscode/
 .idea/
