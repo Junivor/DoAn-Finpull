@@ -5,7 +5,7 @@ COPY go.mod go.sum ./
 RUN go env -w GOPROXY=https://proxy.golang.org
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /finpull ./cmd/app
+RUN make build-linux
 
 # Final image
 FROM gcr.io/distroless/static:nonroot
