@@ -61,13 +61,15 @@ cmd/app/main.go                → Entry point (3-step: load config → wire DI 
 
 ## Quick Start
 
-### Build
+### Build - IMPORTANT STEP NEED TO DO BEFORE RUNNING
 
-```bash
-make build
-# or
-go build -o bin/finpull ./cmd/app
-```
+````bash
+# build for linux OS
+make build-linux
+# or for windows OS
+make build-window
+````
+
 
 ### Configuration
 
