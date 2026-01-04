@@ -1,4 +1,4 @@
-.PHONY: help build run test clean docker-build docker-up docker-down docker-logs deploy-dev deploy-staging deploy-prod
+.PHONY: help build run test clean docker-build docker-up docker-down docker-logs deploy-dev deploy-staging deploy-prod build-linux build-windows
 
 # Load environment variables
 ifneq (,$(wildcard .env.local))
@@ -27,6 +27,14 @@ help: ## Show this help message
 build: ## Build the Go application
 	@echo "$(GREEN)Building FinPull...$(NC)"
 	go build -o bin/finpull ./cmd/app
+
+build-linux: ## Build static Linux amd64 binary (runs go mod tidy then builds to /tmp/finpull)
+	@echo "$(GREEN)Tidying modules and building static Linux amd64 binary to /tmp/finpull...$(NC)"
+	go mod tidy && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /tmp/finpull ./cmd/app
+
+build-windows: ## Build Windows amd64 binary (runs go mod tidy then builds to /tmp/finpull.exe)
+	@echo "$(GREEN)Tidying modules and building Windows amd64 binary to /tmp/finpull.exe...$(NC)"
+	go mod tidy && CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o /tmp/finpull.exe ./cmd/app
 
 run: ## Run the application locally
 	@echo "$(GREEN)Running FinPull...$(NC)"
