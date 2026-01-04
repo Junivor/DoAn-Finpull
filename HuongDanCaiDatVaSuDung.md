@@ -61,42 +61,6 @@ cmd/app/main.go                → Điểm khởi đầu (3 bước: tải confi
 
 ## Bắt Đầu Nhanh
 
-### Xây Dựng - BƯỚC QUAN TRỌNG CẦN THỰC HIỆN TRƯỚC KHI CHẠY
-
-````bash
-# build cho linux OS
-make build-linux
-# hoặc cho windows OS
-make build-window
-````
-
-
-### Cấu Hình
-
-`config/dev.yaml`:
-```yaml
-environment: development
-backend:
-  type: kafka  # or clickhouse
-finnhub:
-  api_key: ${FINNHUB_API_KEY}
-  symbols:
-    - BINANCE:BTCUSDT
-kafka:
-  brokers:
-    - kafka-headless:9092
-  topic: finpull
-```
-
-Biến môi trường ghi đè YAML:
-```bash
-export FINNHUB_API_KEY=your_key
-export BACKEND=clickhouse
-./bin/finpull
-```
-
-## Phát Triển
-
 ### Cài Đặt Công Cụ
 
 ```bash
@@ -134,7 +98,7 @@ make lint
 make test
 ```
 
-## Chạy Với Docker
+## Khởi động dự án cùng hạ tầng với Docker
 
 ### Khởi Động Hạ Tầng
 
@@ -152,7 +116,7 @@ Khởi động:
 - Prometheus (`:9090`)
 - Grafana (`:3000`) UI: `http://localhost:3000`
 
-### Dừng Hạ Tầng
+### Tắt dự án và dọn sạch hạ tầng Docker
 
 ```bash
 make docker-down
