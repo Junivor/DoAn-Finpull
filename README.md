@@ -60,42 +60,6 @@ cmd/app/main.go                → Entry point (3-step: load config → wire DI 
 - Repositories receive connections, never create them
 - Cleanup handled centrally
 
-## Quick Start
-
-### Build - IMPORTANT STEP NEED TO DO BEFORE RUNNING
-
-````bash
-# build for linux OS
-make build-linux
-# or for windows OS
-make build-window
-````
-
-
-### Configuration
-
-`config/dev.yaml`:
-```yaml
-environment: development
-backend:
-  type: kafka  # or clickhouse
-finnhub:
-  api_key: ${FINNHUB_API_KEY}
-  symbols:
-    - BINANCE:BTCUSDT
-kafka:
-  brokers:
-    - kafka-headless:9092
-  topic: finpull
-```
-
-Environment variables override YAML:
-```bash
-export FINNHUB_API_KEY=your_key
-export BACKEND=clickhouse
-./bin/finpull
-```
-
 ## Development
 
 ### Install Tools
