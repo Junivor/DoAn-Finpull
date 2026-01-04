@@ -1,0 +1,52 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "CH Insert Latency (seconds)",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(finpull_operation_duration_seconds_bucket{operation=\"ch_insert_seconds\"}[5m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "sum(rate(finpull_operation_duration_seconds_sum{operation=\"ch_insert_seconds\"}[5m])) / sum(rate(finpull_operation_duration_seconds_count{operation=\"ch_insert_seconds\"}[5m]))",
+          "legendFormat": "avg"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "MV Lag (seconds)",
+      "targets": [
+        {"expr": "avg_over_time(finpull_operation_duration_seconds_sum{operation=\"mv_lag_seconds\"}[1m]) / avg_over_time(finpull_operation_duration_seconds_count{operation=\"mv_lag_seconds\"}[1m])", "legendFormat": "avg"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "Consumer Lag (by group/topic)",
+      "description": "Requires kafka_exporter providing kafka_consumergroup_lag",
+      "targets": [
+        {"expr": "sum(kafka_consumergroup_lag) by (consumergroup, topic)", "legendFormat": "{{consumergroup}}/{{topic}}"}
+      ],
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16}
+    }
+  ],
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["finpull", "realtime"],
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "",
+  "title": "FinPull - Real-time Pipeline",
+  "uid": "finpull-rt",
+  "version": 1
+}
+
+

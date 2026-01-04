@@ -1,0 +1,79 @@
+# FinPull Configuration
+# Environment: development, staging, production
+environment: development
+
+app:
+  name: finpull
+  version: 1.0.0
+  log_level: debug  # debug, info, warn, error
+
+# Finnhub WebSocket configuration
+finnhub:
+  # WARNING: do NOT commit real API keys into the repo. Provide via environment variable FINNHUB_API_KEY
+  api_key: ""  # use env FINNHUB_API_KEY or k8s secret
+  websocket_url: wss://ws.finnhub.io
+  symbols:
+    - BINANCE:BTCUSDT
+  reconnect_delay: 5s
+  ping_interval: 30s
+
+# Backend configuration
+backend:
+  type: kafka  # kafka, clickhouse, vector
+  buffer_size: 10000
+  batch_size: 100
+  batch_timeout: 10ms
+
+# Kafka configuration
+kafka:
+  brokers:
+    - localhost:9092
+  topic: finnhub
+  group_id: finpull-consumer
+  compression: snappy  # none, gzip, snappy, lz4, zstd
+  required_acks: -1    # -1 = all replicas
+  max_retries: 3
+  retry_backoff: 100ms
+
+# ClickHouse configuration
+clickhouse:
+  host: localhost
+  port: 9000
+  http_port: 8123
+  database: finpull_dev
+  user: finpull-clickhouse
+  # WARNING: do NOT commit production passwords. Provide via environment variable CLICKHOUSE_PASSWORD or k8s secret.
+  password: ""
+  max_open_conns: 10
+  max_idle_conns: 5
+  conn_max_lifetime: 1h
+  dial_timeout: 10s
+  read_timeout: 30s
+  write_timeout: 30s
+
+# Vector HTTP configuration
+vector:
+  url: http://vector:8080
+  timeout: 10s
+  max_retries: 3
+  retry_delay: 1s
+
+# Metrics configuration
+metrics:
+  enabled: true
+  port: 2112
+  path: /metrics
+
+# Server configuration
+server:
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 30s
+  shutdown_timeout: 10s
+
+# Logging configuration
+logging:
+  level: debug
+  format: json  # json, text
+  output: stdout  # stdout, file
+  file_path: /var/log/finpull/app.log

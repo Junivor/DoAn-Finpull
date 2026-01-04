@@ -1,0 +1,11 @@
+docker/redis/data/
+docker/clickhouse/data/
+docker/postgres/data/
+docker/kafka/data/
+docker/zookeeper/data/
+bin/
+*.log
+.git/
+.env*
+!.env.example
+

@@ -1,0 +1,13 @@
+fastapi==0.115.2
+uvicorn==0.30.6
+pydantic==2.9.2
+numpy==2.1.2
+pandas==2.2.3
+scikit-learn==1.5.2
+statsmodels==0.14.4
+lightgbm==4.5.0
+arch==7.0.0
+redis==5.0.8
+joblib==1.4.2
+clickhouse-driver==0.2.6
+scipy==1.14.1

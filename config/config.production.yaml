@@ -1,0 +1,71 @@
+# FinPull Production Configuration
+environment: production
+
+app:
+  name: finpull
+  version: 1.0.0
+  log_level: info
+
+# Finnhub WebSocket configuration
+finnhub:
+  api_key: ${FINNHUB_API_KEY}  # Load from environment
+  websocket_url: wss://ws.finnhub.io
+  symbols:
+    - BINANCE:BTCUSDT
+    - BINANCE:ETHUSDT
+    - BINANCE:BNBUSDT
+  reconnect_delay: 5s
+  ping_interval: 30s
+
+# Backend configuration
+backend:
+  type: kafka
+  buffer_size: 50000
+  batch_size: 100
+  batch_timeout: 10ms
+
+# Kafka configuration
+kafka:
+  brokers:
+    - kafka-headless:9092
+  topic: finpull
+  group_id: finpull-consumer
+  compression: snappy
+  required_acks: -1
+  max_retries: 5
+  retry_backoff: 200ms
+
+# ClickHouse configuration
+clickhouse:
+  host: 10.54.55.13
+  port: 9000
+  http_port: 8123
+  database: default
+  user: default
+  password: ""
+  max_open_conns: 20
+  max_idle_conns: 10
+  conn_max_lifetime: 1h
+  dial_timeout: 10s
+  read_timeout: 30s
+  write_timeout: 30s
+
+# Metrics configuration
+metrics:
+  enabled: true
+  port: 2112
+  path: /metrics
+
+# Server configuration
+server:
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 30s
+  shutdown_timeout: 30s
+
+# Logging configuration
+logging:
+  level: info
+  format: json
+  output: stdout
+

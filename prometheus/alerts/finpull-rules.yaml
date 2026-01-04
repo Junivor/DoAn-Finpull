@@ -1,0 +1,63 @@
+groups:
+  - name: finpull.rules
+    rules:
+      - alert: FinpullMVLagHigh
+        expr: |
+          (avg_over_time(finpull_operation_duration_seconds_sum{operation="mv_lag_seconds"}[1m])
+           /
+           clamp_min(avg_over_time(finpull_operation_duration_seconds_count{operation="mv_lag_seconds"}[1m]), 1)) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MV lag high (>5s)"
+          description: "Materialized view lag is above 5s for more than 2 minutes."
+
+      - alert: FinpullConsumerLagHigh
+        expr: sum(kafka_consumergroup_lag) by (consumergroup) > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Consumer lag high"
+          description: "Kafka consumer lag > 10k for 5m (check consumer throughput and brokers)."
+
+      - alert: FinpullInsertLatencyHighP95
+        expr: |
+          histogram_quantile(0.95, sum(rate(finpull_operation_duration_seconds_bucket{operation="ch_insert_seconds"}[5m])) by (le)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ClickHouse insert latency P95 > 1s"
+          description: "Investigate merges, disk IO, or async insert tuning."
+
+      - alert: FinpullConsumerQueueFullnessHigh
+        expr: avg_over_time(finpull_kafka_consumer_queue_fullness[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Hệ thống overload - buffer sắp đầy"
+          description: "Consumer queue fullness > 80% liên tục 5 phút. Xem xét tăng BufferSize/Workers hoặc giảm RPS."
+
+      - alert: FinpullPipelineThrottleRateCritical
+        expr: increase(pipeline_throttle_count[5m]) > 100
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Upstream flood hoặc cấu hình sai"
+          description: "Throttle tăng bất thường theo symbol. Kiểm tra cấu hình MaxRPS và upstream."
+
+      - alert: FinpullConsumerHandleLatencyHighP95
+        expr: |
+          histogram_quantile(0.95, sum(rate(finpull_kafka_consumer_handle_seconds_bucket[5m])) by (le, topic)) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Downstream xử lý chậm"
+          description: "P95 handling latency > 500ms trong 5m theo topic. Cần kiểm tra downstream/pipeline."
+
+

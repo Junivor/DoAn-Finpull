@@ -1,0 +1,367 @@
+version: "3.8"
+
+# ============================================================================
+# FinPull - Production-Ready Docker Compose Configuration
+# ============================================================================
+
+networks:
+  finpull-network:
+    driver: bridge
+
+volumes:
+  clickhouse-data:
+    driver: local
+  pgdata:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+services:
+  # ==========================================================================
+  # FinPull Application (build from Dockerfile)
+  # The application requires a `local.yaml` config file. Mount the repo `local.yaml`
+  # (relative to this compose file) into the container so the image can start.
+  # ==========================================================================
+  finpull:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: k0i1/finpull:latest
+    container_name: finpull-app
+    hostname: finpull
+    networks:
+      - finpull-network
+    working_dir: /app
+    # Mount the repository-level configuration file so the container can read
+    # config/config.yaml at runtime. Use local.yaml for local development.
+    volumes:
+      - ../config/local.yaml:/app/config/config.yaml:ro
+    environment:
+      # Point the app to the mounted config file; adapt if your binary expects a
+      # different env var name.
+      CONFIG_FILE: /app/config/config.yaml
+      # keep example defaults; override with env or .env when running
+      ENV: ${ENV:-local}
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    # If your app binds to a port, expose it here (adjust as needed).
+    ports:
+      - "${FINPULL_PORT:-8080}:8080"
+
+  # ==========================================================================
+  # ClickHouse - Analytics Database
+  # ==========================================================================
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.8
+    container_name: finpull-clickhouse
+    hostname: clickhouse
+    networks:
+      - finpull-network
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./clickhouse/init-finpull-dev.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123" # HTTP
+      - "${CLICKHOUSE_PORT:-9000}:9000" # Native
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DATABASE:-finpull_dev}
+      # Use default user with no password for local development
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+
+  # ==========================================================================
+  # PostgreSQL - Metadata Store for Superset
+  # ==========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: finpull-postgres
+    hostname: postgres
+    networks:
+      - finpull-network
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-finpull}
+      # DO NOT commit default passwords. Provide via env or secret manager in production.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-finpull123}
+      POSTGRES_DB: ${POSTGRES_DB:-finpull}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-finpull}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  # ==========================================================================
+  # Zookeeper - Kafka Coordination
+  # ==========================================================================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: finpull-zookeeper
+    hostname: zookeeper
+    networks:
+      - finpull-network
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_LOG4J_ROOT_LOGLEVEL: WARN
+    ports:
+      - "${ZOOKEEPER_PORT:-2181}:2181"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # ==========================================================================
+  # Kafka - Message Broker
+  # ==========================================================================
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: finpull-kafka
+    hostname: kafka
+    networks:
+      - finpull-network
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_LOG4J_ROOT_LOGLEVEL: WARN
+      KAFKA_HEAP_OPTS: ${KAFKA_HEAP_OPTS:--Xmx1G -Xms1G}
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "kafka-broker-api-versions",
+          "--bootstrap-server",
+          "localhost:9092",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # ==========================================================================
+  # Redis - Cache for Superset
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: finpull-redis
+    hostname: redis
+    networks:
+      - finpull-network
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - ./redis/data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # ==========================================================================
+  # Superset - Data Visualization
+  # ==========================================================================
+  superset:
+    build:
+      context: ./superset
+      dockerfile: Dockerfile
+    container_name: finpull-superset
+    hostname: superset
+    networks:
+      - finpull-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    environment:
+      SUPERSET_ENV: ${ENV:-development}
+      SUPERSET_LOAD_EXAMPLES: "no"
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-dev_secret_key_not_for_production}
+      # Admin bootstrap
+      ADMIN_USERNAME: ${SUPERSET_ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
+      ADMIN_FIRST_NAME: ${SUPERSET_ADMIN_FIRST_NAME:-Admin}
+      ADMIN_LAST_NAME: ${SUPERSET_ADMIN_LAST_NAME:-User}
+      ADMIN_EMAIL: ${SUPERSET_ADMIN_EMAIL:-admin@example.com}
+      # Database connections
+      SQLALCHEMY_DATABASE_URI: postgresql+psycopg2://${POSTGRES_USER:-finpull}:${POSTGRES_PASSWORD:-finpull123}@postgres:5432/${POSTGRES_DB:-finpull}
+      # Redis
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      # ClickHouse connection for auto-configuration
+      CLICKHOUSE_HOST: ${CLICKHOUSE_HOST:-clickhouse}
+      CLICKHOUSE_PORT: ${CLICKHOUSE_HTTP_PORT:-8123}
+      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-finpull_dev}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      # Performance
+      SUPERSET_WORKERS: ${SUPERSET_WORKERS:-2}
+      SUPERSET_WORKER_CLASS: ${SUPERSET_WORKER_CLASS:-gthread}
+      SUPERSET_TIMEOUT: ${SUPERSET_TIMEOUT:-120}
+    volumes:
+      - ./superset/provisioning:/app/superset/provisioning:ro
+      - ./superset/import:/app/superset/import:ro
+    ports:
+      - "${SUPERSET_PORT:-8088}:8088"
+    command: >
+      sh -c "superset db upgrade &&
+      superset fab create-admin --username admin --firstname Admin --lastname User --email admin@superset.com --password admin &&
+      superset init &&
+      superset run -h 0.0.0.0 -p 8088 --with-threads --reload --debugger"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # ==========================================================================
+  # Prometheus - Metrics Collection
+  # ==========================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: finpull-prometheus
+    hostname: prometheus
+    networks:
+      - finpull-network
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # ==========================================================================
+  # Grafana - Monitoring Dashboard
+  # ==========================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: finpull-grafana
+    hostname: grafana
+    networks:
+      - finpull-network
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      # DO NOT keep admin password defaults in repo
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+

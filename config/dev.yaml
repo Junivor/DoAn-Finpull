@@ -1,0 +1,64 @@
+environment: development
+
+server:
+  port: 2112
+  read_timeout: 5s
+  write_timeout: 10s
+  shutdown_timeout: 5s
+
+metrics:
+  enabled: true
+  path: /metrics
+
+backend:
+  type: kafka
+  batch_size: 100
+  batch_timeout: 10ms
+
+kafka:
+  brokers: ["10.54.55.10:31968"]
+  topic: finpull
+  required_acks: -1
+  compression: snappy
+  consumer:
+    workers: 4
+    buffer_size: 1024
+    min_bytes: 1048576     # 1MB
+    max_bytes: 33554432    # 32MB
+    group_id: finpull-consumer
+
+clickhouse:
+  host: 10.54.55.13
+  port: 9000
+  database: finpull_dev
+  user: default
+  password: ""
+  use_http: false              
+  async_insert: true           
+  wait_for_async_insert: false 
+  dial_timeout: 5s
+  read_timeout: 10s
+  write_timeout: 10s
+  max_execution_time: 2s
+
+finnhub:
+  api_key: ${FINNHUB_API_KEY}
+  websocket_url: wss://ws.finnhub.io
+  symbols: ["BINANCE:BTCUSDT", "OANDA:XAU_USD", "OANDA:WTICO_USD", "OANDA:XAG_USD"]
+  reconnect_delay: 5s
+  ping_interval: 30s
+
+analytics:
+  python_service_url: http://localhost:8000
+  model_dir: ./python/models
+  timeout: 3s
+  cache_ttl:
+    regime: 30s
+    vol: 30s
+    anomaly: 30s
+    edge: 60s
+  redis:
+    enabled: false
+    addr: localhost:6379
+    password: ""
+    db: 0

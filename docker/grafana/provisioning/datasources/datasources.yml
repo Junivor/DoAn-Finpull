@@ -1,0 +1,34 @@
+# Grafana Datasource Provisioning
+
+apiVersion: 1
+
+datasources:
+  # Prometheus
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: "15s"
+      httpMethod: POST
+
+  # ClickHouse
+  - name: ClickHouse
+    type: grafana-clickhouse-datasource
+    access: proxy
+    url: http://clickhouse:8123
+    editable: true
+    jsonData:
+      defaultDatabase: finpull
+      port: 8123
+      protocol: http
+      secure: false
+    secureJsonData:
+      username: finpull-clickhouse
+      # WARNING: do not store real passwords in the repository. Replace this placeholder in-cluster
+      password: "<REPLACE_IN_CLUSTER>"
+
+# If you prefer to provision credentials via Kubernetes secret, create a secret and reference it in your
+# Grafana deployment manifest (or use the Grafana Helm chart to mount secrets). See docs/ for guidance.

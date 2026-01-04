@@ -1,0 +1,20 @@
+version: 1
+
+datasources:
+  - name: ClickHouse FinPull
+    type: clickhouse
+    uid: clickhouse-finpull
+    database:
+      database_name: finpull
+      host: clickhouse
+      port: 8123
+      username: default
+      password: ""
+    sqlalchemy_uri: clickhouse+http://default:@clickhouse:8123/finpull
+    is_managed_externally: true
+    allow_run_async: true
+    expose_in_sqllab: true
+    extra:
+      engine_params:
+        connect_args:
+          timeout: 10

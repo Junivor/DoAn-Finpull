@@ -1,0 +1,17 @@
+# =====================
+# VECTOR CONFIGURATION
+# =====================
+
+[sources.http]
+type = "http"
+address = "0.0.0.0:8080"
+encoding = "json"
+
+[sinks.kafka]
+type = "kafka"
+inputs = ["http"]
+bootstrap_servers = "kafka:9092"
+topic = "finnhub"
+compression = "none"
+encoding.codec = "json"
+

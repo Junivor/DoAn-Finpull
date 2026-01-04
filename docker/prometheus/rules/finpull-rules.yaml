@@ -1,0 +1,33 @@
+groups:
+  - name: finpull.rules
+    rules:
+      - alert: FinpullMVLagHigh
+        expr: |
+          (avg_over_time(finpull_operation_duration_seconds_sum{operation="mv_lag_seconds"}[1m])
+           /
+           clamp_min(avg_over_time(finpull_operation_duration_seconds_count{operation="mv_lag_seconds"}[1m]), 1)) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MV lag high (>5s)"
+          description: "Materialized view lag is above 5s for more than 2 minutes."
+
+      - alert: FinpullConsumerLagHigh
+        expr: sum(kafka_consumergroup_lag) by (consumergroup) > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Consumer lag high"
+          description: "Kafka consumer lag > 10k for 5m (check consumer throughput and brokers)."
+
+      - alert: FinpullInsertLatencyHighP95
+        expr: |
+          histogram_quantile(0.95, sum(rate(finpull_operation_duration_seconds_bucket{operation="ch_insert_seconds"}[5m])) by (le)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ClickHouse insert latency P95 > 1s"
+          description: "Investigate merges, disk IO, or async insert tuning."

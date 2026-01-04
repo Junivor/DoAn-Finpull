@@ -1,0 +1,64 @@
+# Binaries
+finpull
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Environment files
+.env
+.env.local
+.env.staging
+.env.production
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Dependencies
+vendor/
+node_modules/
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Secrets
+secrets/
+*.pem
+*.key
+*.crt
+
+# Data
+data/
+*.db
+*.sqlite
+
+# Temp files
+tmp/
+temp/
+*.tmp
+docker/redis/data/
+docker/redis/data/
+
+markdown/
+
