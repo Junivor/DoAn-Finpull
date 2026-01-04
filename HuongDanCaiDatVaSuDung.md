@@ -307,7 +307,7 @@ make docker-down
 
 ## Các Thực Hành Tốt Về Cấu Trúc Dự Án
 
-### Cái Gì Đi Đâu?
+### Những thư mục quan trọng
 
 **`pkg/`** - Tiện ích hạ tầng (có thể tái sử dụng qua các dự án):
 - Trình quản lý kết nối (DB, Kafka, Redis)
