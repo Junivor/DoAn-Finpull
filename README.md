@@ -1,4 +1,5 @@
 # FinPull - Real-time Market Data Collector
+[Xem hướng dẫn cài đặt và sử dụng dành cho tiếng Việt](HuongDanCaiDatVaSuDung.md) 
 
 Clean Architecture + Dependency Injection (Wire) implementation for collecting real-time market data from Finnhub and streaming to Kafka/ClickHouse.
 
